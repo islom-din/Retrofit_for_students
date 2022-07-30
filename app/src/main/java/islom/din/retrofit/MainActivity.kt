@@ -4,44 +4,77 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.Toast
+import androidx.core.view.isVisible
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import islom.din.retrofit.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.lang.Exception
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 
 class MainActivity : AppCompatActivity() {
+    private var _binding: ActivityMainBinding? = null
+    private val binding get() = _binding!!
 
-    private val retrofit = RetrofitClient()
+    private lateinit var viewModel: MainViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        _binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val call = retrofit.getCoffeeApi().getCoffee()
-        val button = findViewById<Button>(R.id.button)
+        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+        setupListeners()
+        observeData()
+    }
 
-        button.setOnClickListener {
-            call.enqueue(object : Callback<Coffee> {
-                override fun onResponse(call: Call<Coffee>, response: Response<Coffee>) {
-                    response.errorBody()
-                    if(response.isSuccessful) {
-                        Log.d("data_tag", "OK!")
-                        // Ответ успешно пришел, он находится внутри объекта call
-                        val coffee: Coffee? = response.body()
-                        if(coffee != null) {
-                            // данные точно есть
-                            Log.d("data_tag", "${coffee.id}")
-                            Log.d("data_tag", "${coffee.blendName}")
-                            Log.d("data_tag", "${coffee.intensifier}")
-                            Log.d("data_tag", "${coffee.notes}")
-                            Log.d("data_tag", "${coffee.origin}")
-                        }
-                    }
-                }
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
+    }
 
-                override fun onFailure(call: Call<Coffee>, t: Throwable) {
-                    Log.d("request_error", "onFailure: ${t.message}")
-                }
-            })
+    private fun setupListeners() {
+        binding.button.setOnClickListener {
+            viewModel.getCoffee()
+        }
+    }
+
+    private fun observeData() {
+        viewModel.coffeeLiveData.observe(this) { coffee ->
+            coffee?.let { binding.button.text = coffee.blendName }
+        }
+
+        viewModel.progressLiveData.observe(this) { inProgress ->
+//            if(inProgress) {
+//                binding.button.isVisible = false
+//                binding.progress.isVisible = true
+//            } else {
+//                binding.button.isVisible = true
+//                binding.progress.isVisible = false
+//            }
+            binding.apply {
+                button.isVisible = !inProgress
+                progress.isVisible = inProgress
+            }
+        }
+
+        viewModel.errorLiveData.observe(this) { errorMessage ->
+            errorMessage?.let { message ->
+                binding.button.text = message
+            }
+        }
+    }
+
+    private fun showMessage(message: String) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
         }
     }
 }

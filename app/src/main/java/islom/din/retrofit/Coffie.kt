@@ -2,6 +2,7 @@ package islom.din.retrofit
 
 import com.google.gson.annotations.SerializedName
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -22,6 +23,9 @@ data class Coffee(
 interface CoffeeApi {
     @GET("coffee/random_coffee")
     fun getCoffee() : Call<Coffee>
+
+    @GET("coffee/random_coffee")
+    suspend fun getCoffee2(): Response<Coffee>
 }
 
 //3) Сам ретрофит
